@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --bg:#faf9f5; --card:#fff; --text:#1f1e1d; --muted:#6b6a68; --line:#e8e6dc; --accent:#d97757; --ok:#2e7d32; --warn:#b45309; --pill:#f0eee6; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#262624; --card:#30302e; --text:#f0eee6; --muted:#a09f9b; --line:#42413d; --ok:#7bc47f; --warn:#e0a04a; --pill:#3a3936; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; width:370px; background:var(--bg); color:var(--text); font:13px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif; padding-bottom:10px; }
+  header { display:flex; justify-content:space-between; align-items:center; padding:14px 16px 4px; }
+  h1 { font-size:15px; margin:0; }
+  #saved { font-size:11px; color:var(--ok); opacity:0; transition:opacity .3s; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; margin:8px 12px; padding:4px 12px; }
+  #statusCard { padding:12px; }
+  #pill { display:inline-block; padding:3px 10px; border-radius:99px; background:var(--pill); font-weight:600; font-size:12px; }
+  #pill.armed { background:var(--accent); color:#fff; }
+  #pill.paused { color:var(--warn); }
+  #statusText { margin-top:6px; color:var(--muted); }
+  .row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:9px 0; }
+  .row + .row { border-top:1px solid var(--line); }
+  .row small { display:block; color:var(--muted); font-size:11px; margin-top:1px; }
+  .inline { display:flex; gap:6px; align-items:center; }
+  input[type=number], input[type=text] {
+    width:90px; padding:5px 7px; border:1px solid var(--line); border-radius:7px; background:var(--bg); color:var(--text); font:inherit; text-align:right;
+  }
+  input[type=text] { width:120px; text-align:left; }
+  input.sw { appearance:none; -webkit-appearance:none; flex:none; width:36px; height:20px; border-radius:10px; background:var(--line); position:relative; cursor:pointer; transition:background .15s; margin:0; }
+  input.sw::after { content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; transition:transform .15s; }
+  input.sw:checked { background:var(--accent); }
+  input.sw:checked::after { transform:translateX(16px); }
+  details summary { cursor:pointer; padding:9px 0; color:var(--muted); font-size:12px; }
+  .btns { display:flex; gap:8px; margin:8px 12px; }
+  button { flex:1; padding:8px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--text); font:inherit; cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:hover { filter:brightness(.96); }
+  .statusTop, .outTop { display:flex; justify-content:space-between; align-items:center; }
+  .outTop { padding:8px 0 6px; color:var(--muted); font-size:12px; }
+  button.small { flex:none; padding:4px 10px; font-size:12px; }
+  pre { margin:0 0 8px; padding:8px; background:var(--bg); border-radius:8px; font-size:11px; white-space:pre-wrap; word-break:break-word; max-height:180px; overflow:auto; }
+  #log { font-size:11px; color:var(--muted); white-space:pre-wrap; padding-bottom:8px; }
+</style>
+</head>
+<body>
+  <header><h1>Claude Auto-Continue</h1><span id="saved">Saved ✓</span></header>
+
+  <div class="card" id="statusCard">
+    <div class="statusTop"><span id="pill">Idle</span><button id="check" class="small">Check now</button></div>
+    <div id="statusText"></div>
+  </div>
+
+  <div class="card">
+    <div class="row"><div>Enabled<small>Master switch</small></div><input class="sw" type="checkbox" id="enabled"></div>
+    <div class="row"><div>Only run once<small>Switch off after one successful send</small></div><input class="sw" type="checkbox" id="onlyOnce"></div>
+    <div class="row"><div>Keep computer awake<small>Only while armed. Screen can still turn off</small></div><input class="sw" type="checkbox" id="keepAwake"></div>
+    <div class="row"><div>Message to send</div><input type="text" id="message"></div>
+    <div class="row"><div>Add a timestamp<small>e.g. Continue [auto-sent 1:10 AM, 11 Nov]</small></div><input class="sw" type="checkbox" id="timestamp"></div>
+    <div class="row"><div>Wait after reset<small>Minutes, added to Claude's reset time</small></div><input type="number" id="resetBufferMinutes" min="0"></div>
+    <div class="row"><div>Retry every<small>Minutes, if still limited</small></div><input type="number" id="retryMinutes" min="1"></div>
+    <div class="row"><div>Retries<small>Extra tries after the first</small></div><input type="number" id="maxRetries" min="0"></div>
+    <div class="row">
+      <div>Phone alerts (ntfy)<small>Topic name. Leave empty for none</small></div>
+      <div class="inline"><input type="text" id="ntfyTopic" placeholder="my-secret-topic"><button id="ntfyTest" class="small">Test</button></div>
+    </div>
+    <details>
+      <summary>More options</summary>
+      <div class="row"><div>Read reset time from Claude<small>Recommended</small></div><input class="sw" type="checkbox" id="useDetectedTime"></div>
+      <div class="row"><div>Fallback wait<small>Hours after spotting a limit, if no reset time can be read</small></div><input type="number" id="fallbackHours" min="0.5" step="0.5"></div>
+      <div class="row"><div>Switch to the Claude tab<small>Keeps Chrome from slowing it down</small></div><input class="sw" type="checkbox" id="bringToFront"></div>
+      <div class="row"><div>Refresh tab first<small>Off = use the open tab as-is</small></div><input class="sw" type="checkbox" id="reloadFirst"></div>
+    </details>
+  </div>
+
+  <div class="btns">
+    <button id="dry">Dry run (safe)</button>
+    <button id="full" class="primary">Full test (sends!)</button>
+  </div>
+
+  <div class="card" id="outCard" hidden>
+    <div class="outTop"><span>Result</span><button id="copy" class="small">Copy</button></div>
+    <pre id="out"></pre>
+  </div>
+  <div class="card"><details><summary>Activity log</summary><div id="log"></div></details></div>
+
+  <script src="shared.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
