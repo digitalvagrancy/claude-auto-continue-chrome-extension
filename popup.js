@@ -5,8 +5,8 @@
 const $ = (id) => document.getElementById(id);
 
 // Every setting that has a control in the popup.
-const CHECKS  = ["enabled", "onlyOnce", "keepAwake", "timestamp", "useDetectedTime", "bringToFront", "reloadFirst"]; // switches
-const NUMBERS = ["resetBufferMinutes", "retryMinutes", "maxRetries", "fallbackHours"];                  // number boxes
+const CHECKS  = ["enabled", "onlyOnce", "keepAwake", "sendDraft", "timestamp", "useDetectedTime", "bringToFront", "reloadFirst"]; // switches
+const NUMBERS = ["resetBufferMinutes", "retryMinutes", "maxRetries", "fallbackHours", "shortDraftChars"];                  // number boxes
 const TEXTS   = ["message", "ntfyTopic"];                                                               // text boxes
 
 async function load() {
@@ -91,7 +91,7 @@ $("dry").onclick = async () => {
   if (!tab) return showOut("Open a claude.ai chat tab first, then click this.");
   showOut("Checking (takes ~5 seconds)...");
   const s = await getSettings();
-  try { showOut(JSON.stringify(await sendToTab(tab, { type: "TRY_SEND", message: s.message, keywords: s.keywords, dryRun: true }), null, 2)); }
+  try { showOut(JSON.stringify(await sendToTab(tab, { type: "TRY_SEND", message: s.message, stamp: "", keywords: s.keywords, dryRun: true, sendDraft: s.sendDraft, shortDraftChars: s.shortDraftChars }), null, 2)); }
   catch (e) { showOut("Couldn't reach the page: " + e.message); }
 };
 

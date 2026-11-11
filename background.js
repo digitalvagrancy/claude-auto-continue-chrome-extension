@@ -80,15 +80,15 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === "retry") await attempt();
 });
 
-// ---------- builds the text that gets typed ----------
-// Example: "Continue [auto-sent 1:10 AM, 11 Nov]". Square brackets + "auto-sent" make it
-// obviously a note-to-self, so Claude just carries on with the task and ignores the tag.
-function buildMessage(s) {
-  if (!s.timestamp) return s.message;
+// ---------- builds the little timestamp tag ----------
+// Example: " [auto-sent 1:10 AM, 11 Nov]". Square brackets + "auto-sent" make it obviously a
+// note-to-self, so Claude just carries on with the task and ignores the tag.
+function buildStamp(s) {
+  if (!s.timestamp) return "";
   const now = new Date();
   const time = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   const date = now.toLocaleDateString([], { day: "numeric", month: "short" });
-  return s.message + " [auto-sent " + time + ", " + date + "]";
+  return " [auto-sent " + time + ", " + date + "]";
 }
 
 // ---------- the main routine ----------
@@ -107,13 +107,17 @@ async function attempt() {
   try {
     // First try: use the open tab as-is. Retries (and sleeping tabs) get a reload.
     const tabId = await openTab(st.armedUrl, st.attempts > 0 || s.reloadFirst, s.bringToFront);
-    const finalMessage = buildMessage(s); // made at the moment of sending, so the time is accurate
-    const result = await askTab(tabId, { type: "TRY_SEND", message: finalMessage, keywords: s.keywords, dryRun: false });
+    const stamp = buildStamp(s); // made at the moment of sending, so the time is accurate
+    const result = await askTab(tabId, {
+      type: "TRY_SEND", message: s.message, stamp, keywords: s.keywords, dryRun: false,
+      sendDraft: s.sendDraft, shortDraftChars: s.shortDraftChars
+    });
 
     if (result && result.status === "sent") {
       await setState({ armed: false, fireAt: 0, fireSource: "", lastSentAt: Date.now(), attempts: 0 });
-      await log("SUCCESS: sent '" + finalMessage + "'. (" + (result.detail || "") + ")");
-      await notify("Claude Auto-Continue: sent", "Sent: " + finalMessage, "default", "white_check_mark");
+      await log("SUCCESS: sent '" + (result.sentPreview || s.message) + "'. (" + (result.detail || "") + ")");
+      // The alert deliberately does NOT include your text - only the time.
+      await notify("Claude Auto-Continue: sent", "Message sent at " + new Date().toLocaleString([], { hour: "numeric", minute: "2-digit", day: "numeric", month: "short" }) + ".", "default", "white_check_mark");
       if (s.onlyOnce) {
         await chrome.storage.local.set({ settings3: { ...s, enabled: false } }); // switch ourselves off
         await log("Only-once mode: extension has switched itself off.");

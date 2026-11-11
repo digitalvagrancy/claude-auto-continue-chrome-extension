@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Claude Auto-Continue",
-  "version": "2.3",
+  "version": "2.4",
   "description": "Sends 'Continue' to Claude after a usage limit resets.",
   "permissions": [
     "alarms",

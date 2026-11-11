@@ -55,6 +55,7 @@
     <div class="row"><div>Only run once<small>Switch off after one successful send</small></div><input class="sw" type="checkbox" id="onlyOnce"></div>
     <div class="row"><div>Keep computer awake<small>Only while armed. Screen can still turn off</small></div><input class="sw" type="checkbox" id="keepAwake"></div>
     <div class="row"><div>Message to send</div><input type="text" id="message"></div>
+    <div class="row"><div>Send my own draft<small>If you've typed something in the box, send that instead of just Continue</small></div><input class="sw" type="checkbox" id="sendDraft"></div>
     <div class="row"><div>Add a timestamp<small>e.g. Continue [auto-sent 1:10 AM, 11 Nov]</small></div><input class="sw" type="checkbox" id="timestamp"></div>
     <div class="row"><div>Wait after reset<small>Minutes, added to Claude's reset time</small></div><input type="number" id="resetBufferMinutes" min="0"></div>
     <div class="row"><div>Retry every<small>Minutes, if still limited</small></div><input type="number" id="retryMinutes" min="1"></div>
@@ -65,6 +66,7 @@
     </div>
     <details>
       <summary>More options</summary>
+      <div class="row"><div>Short draft limit<small>A draft shorter than this many characters counts as leftovers: Continue is added after it</small></div><input type="number" id="shortDraftChars" min="1"></div>
       <div class="row"><div>Read reset time from Claude<small>Recommended</small></div><input class="sw" type="checkbox" id="useDetectedTime"></div>
       <div class="row"><div>Fallback wait<small>Hours after spotting a limit, if no reset time can be read</small></div><input type="number" id="fallbackHours" min="0.5" step="0.5"></div>
       <div class="row"><div>Switch to the Claude tab<small>Keeps Chrome from slowing it down</small></div><input class="sw" type="checkbox" id="bringToFront"></div>

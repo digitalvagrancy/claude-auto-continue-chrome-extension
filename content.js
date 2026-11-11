@@ -188,12 +188,27 @@
   setTimeout(tick, 8000);
 
   // ---------- JOB 2: close popup, type, send ----------
-  async function trySend({ message, keywords, dryRun }) {
+  async function trySend({ message, stamp = "", keywords, dryRun, sendDraft = true, shortDraftChars = 15 }) {
     const box = await waitFor(getBox, 25000);
     if (!box) return { status: "no_box" };
     await sleep(4000); // let the popup draw itself
 
     const limit = findLimitText(keywords);
+
+    // ---- helpers for working with whatever is already in the box ----
+    const TAG_AT_END = /\s*\[auto-sent[^\]]*\]$/i;                      // a stamp left by one of OUR earlier tries
+    const readBox = () => (getBox().innerText || "").replace(/\s+$/, ""); // box text, without trailing blank space
+    const caretToEnd = () => {                                          // put the typing cursor at the very end
+      box.focus();
+      const range = document.createRange();
+      range.selectNodeContents(box.lastElementChild || box);
+      range.collapse(false);                                            // false = collapse to the END
+      const sel = getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    };
+    const typeText = async (t) => { document.execCommand("insertText", false, t); await sleep(600); };
+    const wipeBox = async () => { box.focus(); document.execCommand("selectAll"); document.execCommand("delete"); await sleep(300); };
 
     // DRY RUN: report everything, touch nothing (apart from a harmless focus).
     if (dryRun) {
@@ -207,6 +222,15 @@
         popupTextPreview: [...document.querySelectorAll('[role="dialog"], [aria-modal="true"]')]
           .map((d) => (d.innerText || "").replace(/\s+/g, " ").slice(0, 200)),
         textBox: inspectBox(box),
+        whatItWouldDo: (() => {
+          const ex = readBox();
+          const core = ex.replace(TAG_AT_END, "").trim();
+          if (!ex) return "box is empty: would type '" + message + "'";
+          if (core.toLowerCase() === message.trim().toLowerCase()) return "box holds a leftover '" + message + "': would retype it fresh";
+          if (!sendDraft) return "box has text but 'send my draft' is OFF: would NOT send";
+          if (core.length < shortDraftChars) return "short draft (" + core.length + " characters): would add '" + message + "' after it";
+          return "your draft (" + core.length + " characters): would send it as written, plus the timestamp if that's switched on";
+        })(),
         sendButton: btn ? (btn.disabled ? "found (disabled - normal when box is empty)" : "found, enabled") : "missing"
       };
     }
@@ -215,21 +239,48 @@
     let popupNote = "no limit popup";
     if (limit) popupNote = await closeLimitPopup(keywords, false);
 
-    // Don't trample someone's draft - but our own leftover message from an earlier try is fine.
-    // (We ignore the [auto-sent ...] tag when comparing, since its time changes every try.)
-    const stripTag = (t) => t.replace(/\s*\[auto-sent[^\]]*\]\s*$/i, "").trim().toLowerCase();
-    const existing = (box.innerText || "").trim();
-    if (existing) {
-      if (stripTag(existing) !== stripTag(message)) return { status: "draft_present" };
-      box.focus();
-      document.execCommand("selectAll"); // wipe our own old draft so we can retype it with a fresh time
-      document.execCommand("delete");
-      await sleep(300);
+    // ---- Decide what to do about whatever is already in the box ----
+    let existing = readBox();
+    const core0 = existing.replace(TAG_AT_END, "").trim();
+    let draftNote;
+
+    if (existing && core0.toLowerCase() === message.trim().toLowerCase()) {
+      await wipeBox();                     // our own leftover from an earlier try: wipe it and retype fresh
+      existing = "";
+    } else if (existing && !sendDraft) {
+      return { status: "draft_present" };  // it's yours, and you asked us not to touch it
     }
 
-    box.focus();
-    document.execCommand("insertText", false, message); // typing method that works with Claude's editor
-    await sleep(800);
+    if (!existing) {
+      // Empty box: type the message (plus the timestamp).
+      box.focus();
+      await typeText(message + stamp);
+      draftNote = "typed the message";
+    } else {
+      // There's a draft. First remove a stamp left by an earlier try of ours, so we never end up with two.
+      const old = existing.match(TAG_AT_END);
+      if (old) {
+        caretToEnd();
+        for (let i = 0; i < old[0].length; i++) document.execCommand("delete"); // backspace, one character at a time
+        await sleep(400);
+        const after = readBox();
+        if (after !== existing.slice(0, existing.length - old[0].length)) {
+          return { status: "draft_unclear", detail: "couldn't cleanly remove an old timestamp, so left your text alone" };
+        }
+        existing = after;
+      }
+      // Short = probably accidental leftovers: add the message AFTER them. Long = your real instruction: send as written.
+      // Either way we only ever ADD to the end. We never retype your text, so line breaks and formatting survive.
+      if (existing.trim().length < shortDraftChars) {
+        caretToEnd();
+        await typeText(" " + message + stamp);
+        draftNote = "short draft: added the message after it";
+      } else {
+        if (stamp) { caretToEnd(); await typeText(stamp); }
+        draftNote = stamp ? "sent your draft plus the timestamp" : "sent your draft as written";
+      }
+    }
+    const sentPreview = readBox().replace(/\s+/g, " ").slice(0, 60); // for the activity log only (never sent anywhere)
 
     // Click Send once enabled; fall back to pressing Enter.
     const btn = await waitFor(() => { const b = getSendBtn(); return b && !b.disabled ? b : null; }, 5000);
@@ -242,7 +293,7 @@
     // ...and the limit message should NOT come back.
     await sleep(6000);
     const limitAfter = findLimitText(keywords);
-    if (!limitAfter) return { status: "sent", detail: popupNote };
+    if (!limitAfter) return { status: "sent", detail: popupNote + "; " + draftNote, sentPreview };
     return { status: "still_limited", detail: limitAfter };
   }
 

@@ -11,6 +11,8 @@ var DEFAULTS = {
   resetBufferMinutes: 10,   // minutes AFTER the reset time to press continue
   fallbackHours: 5.5,       // if no reset time can be read: press this many hours after the limit was spotted
   message: "Continue",      // what gets typed into the box
+  sendDraft: true,          // if you've typed something in the box, send THAT (instead of only "Continue")
+  shortDraftChars: 15,      // a draft shorter than this counts as accidental leftovers: "Continue" is added after it
   timestamp: true,         // add a small tag like [auto-sent 1:10 AM, 11 Nov] so you can see when it went through
   retryMinutes: 5,          // if still limited, wait this long and try again
   maxRetries: 3,            // how many EXTRA tries after the first one

@@ -1,4 +1,4 @@
-# Claude Auto-Continue (v2.3)
+# Claude Auto-Continue (v2.4)
 
 A small Chrome extension that presses **"Continue"** for you in Claude (claude.ai) after a usage limit resets, so a long job can carry on while you sleep.
 
@@ -26,6 +26,7 @@ It only ever sends your one message into the chat that hit the limit. If it neve
 - **Closes the limit popup carefully:** it only clicks the popup's X if the button passes several checks, otherwise it refuses
 - **Retries** if the limit is still active (defaults: every 5 minutes, 3 extra tries)
 - **Keeps your computer awake** while waiting (the screen can still turn off)
+- **Sends your own draft:** if you've typed an instruction in the box, it sends that (instead of only "Continue"). A very short leftover, like a stray letter or two, gets "Continue" added after it. Your text is never retyped or wiped, only added to
 - **Optional timestamp** on the message, e.g. `Continue [auto-sent 1:10 AM, 11 Nov]`
 - **Optional phone alerts** through the free ntfy app when it arms, succeeds or fails
 - **Only-once mode:** switches itself off after one successful send
@@ -85,7 +86,9 @@ To update later: replace the files in the folder, then click the reload arrow on
 | Only run once | After one successful send, switch the extension off |
 | Keep computer awake | Stops your PC sleeping while armed |
 | Message to send | The text typed into the chat (default: Continue) |
-| Add a timestamp | Adds a small tag with the time it was sent |
+| Send my own draft | If the box has your text, send that. Off = it won't touch a draft and will report a failure instead |
+| Short draft limit | A draft shorter than this many characters (default 15) counts as accidental leftovers, so "Continue" is added after it |
+| Add a timestamp | Adds a small tag with the time it was sent. On a draft, the tag goes on the end |
 | Wait after reset | Minutes added to Claude's reset time before pressing (default 10) |
 | Retry every / Retries | How long to wait, and how many extra tries, if it's still limited (defaults: 5 minutes, 3 tries) |
 | Phone alerts (ntfy) | Your ntfy topic name. Empty means no alerts |
@@ -105,7 +108,7 @@ To update later: replace the files in the folder, then click the reload arrow on
 - It only runs on claude.ai pages.
 - It reads the page text **on your computer** to look for the limit message. Nothing is uploaded.
 - Settings and the activity log are stored in your browser.
-- The **only** thing that leaves your computer is the ntfy alert, and only if you set a topic. Alerts contain short text such as the message it sent and any failure reason.
+- The **only** thing that leaves your computer is the ntfy alert, and only if you set a topic. Alerts contain only short status text (the time it sent, or a failure reason). **They never include what you typed in the chat.** Your own text only appears in the extension's local activity log.
 
 ## Permissions explained
 
@@ -138,6 +141,8 @@ The toolbar icon is an original drawing (not Claude's or Anthropic's logo). To u
 - **Says "estimate" or "no reset time":** click **Check now**, then **Copy**, and read the `pageSaid` line. That is the page's own wording, which shows what the extension is failing to read.
 - **"Couldn't reach the page":** make sure the active tab is claude.ai.
 - **Close button "not clicked":** run **Dry run** and read the reason it gives.
+- **`draft_present` in the log:** the box had text and **Send my own draft** is off, so it left your text alone.
+- **`draft_unclear` in the log:** it couldn't cleanly remove an old timestamp from a draft, so it left your text alone. Remove the old tag yourself or clear the box.
 - **Nothing happened overnight:** open the **Activity log**. It records every attempt and why it did or didn't send.
 
 ## Version history
@@ -149,3 +154,4 @@ The toolbar icon is an original drawing (not Claude's or Anthropic's logo). To u
 | 2.1 | Optional timestamp on the message, README |
 | 2.2 | Toolbar icon |
 | 2.3 | Reads many more reset-time wordings, `pageSaid` in Check now, fallback re-estimates and keeps looking for the real time, removed an over-broad trigger phrase |
+| 2.4 | Sends your own typed draft (on by default), short leftover drafts get Continue added after them, alerts no longer include message text |
